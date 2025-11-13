@@ -1,0 +1,58 @@
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Dense, Flatten
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import numpy as np
+--------------------------------------------------------------------------
+dataset_dir = r"C:\Users\sanap\Downloads\caltech-101-img\caltech-101-img"
+dataset_datagen = ImageDataGenerator(
+    rescale=1.0 / 255,
+)
+
+# here batch_size is the number of images in each batch
+batch_size = 2000
+dataset_generator = dataset_datagen.flow_from_directory(
+    dataset_dir,
+    target_size=(64, 64),
+    batch_size=batch_size,
+    class_mode='categorical'
+)
+-----------------------------------------------------------------------
+x_train, y_train =  dataset_generator[0]
+x_test, y_test = dataset_generator[1]
+
+print(len(x_train))
+print(len(x_test))
+-------------------------------------------------------------------------------
+# Load VGG16 without top layers
+base_model = VGG16(weights='imagenet', include_top=False, input_shape=(64, 64, 3))
+# base_model.load_weights('vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5')
+
+------------------------------------------------------------------------------
+for layer in base_model.layers:
+   layer.trainable = False
+--------------------------------------------------------------------------
+x = Flatten()(base_model.output)
+x = Dense(64, activation='relu')(x)
+predictions = Dense(102, activation='softmax')(x)
+
+# Create the model
+model = Model(inputs=base_model.input, outputs=predictions)
+# Compile the model
+model.compile(optimizer="adam", loss='categorical_crossentropy', metrics=['accuracy'])
+----------------------------------------------------------------------------------
+# Train the model
+model.fit(x_train, y_train, batch_size=64, epochs=10, validation_data=(x_test, y_test))
+---------------------------------------------------------------------------------------
+import matplotlib.pyplot as plt
+predicted_value = model.predict(x_test)
+---------------------------------------------------------------------------------------
+labels = list(dataset_generator.class_indices.keys())
+---------------------------------------------------------------------------------------
+n = 1000
+plt.imshow(x_test[n])
+print("Preditcted: ",labels[np.argmax(predicted_value[n])])
+print("Actual: ", labels[np.argmax(y_test[n])]) 

@@ -1,0 +1,109 @@
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras import layers, models
+import matplotlib.pyplot as plt
+import numpy as np
+import os 
+--------------------------------------------------------------
+dataset_dir = r"C:\Users\sanap\Downloads\caltech-101-img\caltech-101-img"
+
+train_datagen = ImageDataGenerator(
+    rescale=1.0/255,           
+    rotation_range=20,         
+    width_shift_range=0.2,     
+    height_shift_range=0.2,   
+    shear_range=0.2,           
+    zoom_range=0.2,            
+    horizontal_flip=True,      
+    validation_split=0.2       
+)
+
+train_generator = train_datagen.flow_from_directory(
+    dataset_dir,
+    target_size=(64, 64),      
+    batch_size=32,
+    class_mode='categorical',  
+    subset='training'          
+)
+
+val_generator = train_datagen.flow_from_directory(
+    dataset_dir,
+    target_size=(64, 64),
+    batch_size=32,
+    class_mode='categorical',
+    subset='validation'      
+)
+
+print("Classes found:", train_generator.class_indices)
+----------------------------------------------------------------------------
+from tensorflow.keras import Input
+model = models.Sequential([
+    Input(shape=(64, 64, 3)),                    # Input layer
+    layers.Conv2D(32, (3,3), activation='relu'), # 1st Convolution layer
+    layers.MaxPooling2D(2, 2),                   # 1st Pooling layer
+    
+    layers.Conv2D(64, (3,3), activation='relu'), # 2nd Convolution layer
+    layers.MaxPooling2D(2, 2),                   # 2nd Pooling layer
+    
+    layers.Conv2D(128, (3,3), activation='relu'),# 3rd Convolution layer
+    layers.MaxPooling2D(2, 2),                   # 3rd Pooling layer
+    
+    layers.Flatten(),                            # Flatten layer
+    layers.Dense(256, activation='relu'),        # Fully connected layer
+    layers.Dropout(0.5),                         # Dropout for regularization
+    layers.Dense(train_generator.num_classes, activation='softmax') # Output layer
+])
+
+# Print model summary
+model.summary()
+----------------------------------------------------------------------------------------
+model.compile(
+    optimizer='adam',
+    loss='categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+
+history = model.fit(
+    train_generator,
+    validation_data=val_generator,
+    epochs=10
+) 
+----------------------------------------------------------------------------------------
+
+val_loss, val_acc = model.evaluate(val_generator)
+print(f"Validation Loss: {val_loss:.3f}")
+print(f"Validation Accuracy: {val_acc:.3f}")
+
+
+plt.figure(figsize=(12,5))
+
+plt.subplot(1,2,1)
+plt.plot(history.history['accuracy'], label='Train Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.title("Model Accuracy")
+plt.xlabel("Epochs")
+plt.ylabel("Accuracy")
+plt.legend()
+
+plt.subplot(1,2,2)
+plt.plot(history.history['loss'], label='Train Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.title("Model Loss")
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
+plt.legend()
+
+plt.show()
+-----------------------------------------------------------------------------
+from tensorflow.keras.preprocessing import image
+
+img_path = r"C:\Users\sanap\Downloads\caltech-101-img\caltech-101-img\airplanes\image_0001.jpg"
+img = image.load_img(img_path, target_size=(64, 64))
+img_array = image.img_to_array(img)
+img_array = np.expand_dims(img_array, axis=0) / 255.0
+
+prediction = model.predict(img_array)
+predicted_class = np.argmax(prediction)
+print("Predicted Class:", list(train_generator.class_indices.keys())[predicted_class])
